@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JAMB 300 CLUB CBT</title>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#08090c;color:#fff}
+header{background:#111318;padding:18px;text-align:center;border-bottom:3px solid #aaff00}
+header h1{margin:0;color:#aaff00}
+.container{width:95%;max-width:1100px;margin:20px auto}
+.panel{background:#111318;padding:20px;border-radius:10px;margin-bottom:18px}
+.info{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+.candidate-name{font-size:24px;font-weight:900;color:#aaff00;overflow-wrap:anywhere}
+.timer{font-size:27px;font-weight:bold;color:#aaff00}
+.tabs,.navigation{display:flex;flex-wrap:wrap;gap:8px}
+button{padding:12px 16px;border:0;border-radius:5px;cursor:pointer;font-weight:bold}
+button:disabled{opacity:.5;cursor:not-allowed}
+.primary{background:#aaff00;color:#08090c}
+.secondary,.subject-tab{background:#292d36;color:#fff}
+.subject-tab.active{background:#aaff00;color:#000}
+.danger{background:#dc3535;color:#fff}
+.question{font-size:20px;line-height:1.6;margin:20px 0;white-space:pre-wrap}
+.option{display:block;padding:14px;margin:10px 0;background:#20232b;border:1px solid #373b45;border-radius:6px;cursor:pointer;overflow-wrap:anywhere}
+.option:hover{border-color:#aaff00}
+.option input{margin-right:10px}
+.nav-number{min-width:42px;min-height:42px;background:#292d36;color:#fff}
+.nav-number.answered{background:#aaff00;color:#000}
+.nav-number.current{outline:2px solid #fff}
+.small{color:#bbb;font-size:14px}
+#examArea,#resultArea{display:none}
+.score{color:#aaff00;font-size:30px;font-weight:bold}
+.error{color:#ff7777;white-space:pre-wrap;overflow-wrap:anywhere}
+footer{text-align:center;padding:20px;color:#888}
+@media(max-width:600px){
+ .candidate-name{font-size:19px}
+ .timer{font-size:23px}
+ .question{font-size:18px}
+ .panel{padding:14px}
+ .nav-number{min-width:36px;min-height:36px;padding:8px}
+}
+</style>
+</head>
+
+<body>
+<header>
+    <h1>JAMB 300 CLUB</h1>
+    <p>Computer-Based Test Examination Centre</p>
+</header>
+
+<div class="container">
+
+<section class="panel" id="loadingArea">
+    <h2 id="loadingTitle">Loading your examination...</h2>
+    <p id="loadingMessage">Retrieving your candidate details.</p>
+    <p id="loadingError" class="error"></p>
+    <button id="backButton" class="primary" style="display:none"
+        onclick="window.location.href='index.html'">
+        Return to Homepage
+    </button>
+</section>
+
+<section id="examArea">
+    <div class="panel info">
+        <div>
+            <div class="small">CANDIDATE NAME</div>
+            <div class="candidate-name" id="candidateDisplay"></div>
+            <p id="candidateSubjects"></p>
+        </div>
+        <div>
+            <div class="small">TIME REMAINING</div>
+            <div class="timer" id="timer">02:00:00</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>Examination Subjects</h3>
+        <div class="tabs" id="subjectTabs"></div>
+    </div>
+
+    <div class="panel">
+        <h3 id="subjectTitle"></h3>
+        <p class="small" id="questionProgress"></p>
+        <div class="question" id="questionText"></div>
+        <div id="optionsArea"></div>
+        <div class="info">
+            <button class="secondary" onclick="previousQuestion()">Previous</button>
+            <button class="primary" onclick="nextQuestion()">Next</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>Question Navigator</h3>
+        <p class="small">Green = Answered. Dark = Unanswered. White outline = Current question.</p>
+        <div class="navigation" id="questionNavigation"></div>
+        <p id="answeredCount"></p>
+        <button class="danger" onclick="submitExam()">Submit Examination</button>
+    </div>
+</section>
+
+<section class="panel" id="resultArea">
+    <h2>Examination Submitted</h2>
+    <p id="resultCandidate"></p>
+    <div class="score" id="scoreText"></div>
+    <p id="percentageText"></p>
+    <div id="subjectResults"></div>
+    <button class="primary" onclick="window.location.href='index.html'">
+        Return to Homepage
+    </button>
+</section>
+
+</div>
+
+<footer>JAMB 300 CLUB &copy; 2026</footer>
+
+<script>
+"use strict";
+
+/*
+QUESTION FORMAT:
+QUESTION ~ OPTION A ~ OPTION B ~ OPTION C ~ OPTION D ~ ANSWER
+
+0 = A
+1 = B
+2 = C
+3 = D
+
+Each question may span multiple lines.
+English requires 60 questions.
+Every other subject requires 40 questions.
+*/
+
+const rawQuestions = {
+
+Mathematics: `
+Simplify: 3x + 5x - 2x.~4x~6x~8x~10x~1
+Solve: 2x + 5 = 17.~4~5~6~7~2
+Evaluate: 2³ × 2².~16~24~32~64~2
+Find v144.~10~11~12~14~2
+Factorise x² - 9.~(x - 3)(x + 3)~(x - 9)(x + 1)~(x - 3)²~(x + 9)(x - 1)~0
+Find 15% of 200.~15~20~25~30~3
+If y = 3x + 2, find y when x = 4.~10~12~14~16~2
+The sum of the interior angles of a triangle is~90°~180°~270°~360°~1
+Solve x² - 5x + 6 = 0.~x = 1 or 6~x = 2 or 3~x = -2 or -3~x = 0 or 5~1
+Evaluate log10 1000.~1~2~3~10~2
+Find the gradient of y = 4x + 7.~4~7~11~28~0
+Find the mean of 2, 4, 6, 8 and 10.~5~6~7~8~1
+A fair die is thrown once. Probability of a 6?~1/2~1/3~1/6~5/6~2
+Differentiate y = x³ with respect to x.~x²~2x~3x²~3x~2
+Evaluate sin 30°.~0~1/2~v3/2~1~1
+Find the area of a circle of radius 7 cm, using p = 22/7.~44 cm²~77 cm²~154 cm²~308 cm²~2
+Express 0.375 as a fraction in simplest form.~1/4~3/8~5/8~3/4~1
+Solve 3x < 15.~x < 3~x < 5~x > 5~x > 3~1
+Find the 10th term of 2, 5, 8, 11, ...~26~27~29~32~2
+Evaluate ? 2x dx.~2x² + C~x² + C~2 + C~x + C~1
+Solve 5x - 7 = 18.~3~4~5~6~2
+If 3:5 = x:20, find x.~8~10~12~15~1
+Expand (x + 4)(x + 2).~x² + 6x + 8~x² + 8x + 6~x² + 2x + 8~x² + 6~0
+Simplify v50.~5v2~2v5~10v5~25v2~0
+Find the circumference of a circle of radius 7 cm, p = 22/7.~22 cm~44 cm~49 cm~154 cm~1
+Convert 2.5 km to metres.~25 m~250 m~2,500 m~25,000 m~2
+Find the median of 3, 9, 2, 7, 5.~3~5~7~9~1
+If f(x) = 2x - 3, find f(5).~5~7~10~13~1
+Solve x/4 = 6.~10~18~24~30~2
+Find the simple interest on ?5,000 at 4% per annum for 3 years.~?400~?500~?600~?800~2
+What is the sum of the first 10 positive integers?~45~50~55~60~2
+Find the slope between (1,2) and (3,6).~1~2~3~4~1
+A rectangle has length 8 cm and width 5 cm. Find its area.~13 cm²~26 cm²~40 cm²~80 cm²~2
+Evaluate 3?².~-9~-1/9~1/9~1/6~2
+How many ways can 3 different books be arranged in a row?~3~6~9~12~1
+Solve simultaneously: x + y = 7 and x - y = 1.~x=3,y=4~x=4,y=3~x=5,y=2~x=6,y=1~1
+If tan ? = 1 and ? is acute, ? equals~30°~45°~60°~90°~1
+Find the volume of a cube of side 4 cm.~16 cm³~32 cm³~48 cm³~64 cm³~3
+Express 45% as a decimal.~0.045~0.45~4.5~45~1
+The roots of x² - 9 = 0 are~3 only~-3 only~-3 and 3~0 and 9~2
+`,
+
+English: `
+Choose the word nearest in meaning to abundant.~Scarce~Plentiful~Empty~Limited~1
+Choose the opposite of ancient.~Old~Historic~Modern~Past~2
+She _____ to school every day.~go~going~goes~gone~2
+Choose the correctly spelt word.~Accomodation~Accommodation~Acommodation~Accommondation~1
+What is the plural of criterion?~Criterions~Criteria~Criterias~Criterion~1
+Choose the word nearest in meaning to candid.~Honest~Angry~Careless~Proud~0
+Choose the opposite of expand.~Increase~Enlarge~Contract~Extend~2
+Identify the adjective: The clever student answered correctly.~Student~Answered~Clever~Correctly~2
+Choose the correct sentence.~He don't know the answer.~He doesn't knows the answer.~He doesn't know the answer.~He didn't knew the answer.~2
+A person who writes dictionaries is a~Biographer~Lexicographer~Calligrapher~Geographer~1
+Neither the teacher nor the students _____ ready.~was~is~were~has~2
+Choose the opposite of transparent.~Clear~Visible~Opaque~Bright~2
+She is interested _____ science.~on~at~in~for~2
+Identify the adverb in She sang beautifully.~She~Sang~Beautifully~Song~2
+If I _____ you, I would apologise.~am~was~were~be~2
+Choose the correctly punctuated sentence.~Where are you going.~Where are you going?~Where are you going!~Where, are you going.~1
+Choose the word nearest in meaning to meticulous.~Careless~Hasty~Thorough~Lazy~2
+He said, I am tired. Choose the correct reported speech.~He said that I am tired.~He said that he was tired.~He says he tired.~He said that he is tiring.~1
+Choose the correct preposition: She depends _____ her parents.~at~in~on~with~2
+The opposite of generous is~Kind~Selfish~Helpful~Gentle~1
+Choose the correctly spelt word.~Privilege~Privelege~Priviledge~Privillage~0
+The committee _____ submitted its report.~have~has~are~were~1
+Choose the word nearest in meaning to reluctant.~Unwilling~Excited~Ready~Certain~0
+A group of cattle is called a~Pack~Flock~Herd~Swarm~2
+Choose the correct option: I have lived here _____ 2020.~for~since~from~during~1
+Identify the conjunction: I stayed home because it rained.~Stayed~Home~Because~Rained~2
+The comparative form of good is~Gooder~Best~Better~More good~2
+Choose the correct sentence.~Each of the boys have a book.~Each of the boys has a book.~Each boys has a book.~Each boy have a book.~1
+A person who cannot read or write is~Illegible~Illiterate~Ineligible~Inaudible~1
+Choose the opposite of victory.~Success~Triumph~Defeat~Achievement~2
+She speaks English _____ than her brother.~fluent~more fluently~most fluent~fluently more~1
+Choose the correct question tag: You are coming, _____?~are you~aren't you~isn't it~don't you~1
+The past tense of seek is~seeked~sought~saked~sook~1
+Choose the word nearest in meaning to obsolete.~Current~Outdated~Useful~Modern~1
+The books, together with the pen, _____ on the table.~is~was~are~has~2
+Choose the correctly spelt word.~Conscience~Concience~Consciense~Consciencee~0
+The expression once in a blue moon means~Every day~Very rarely~At night~Very quickly~1
+Choose the opposite of hostile.~Unfriendly~Aggressive~Friendly~Dangerous~2
+He is senior _____ me.~than~to~from~over~1
+Choose the word nearest in meaning to impartial.~Biased~Fair~Angry~Uncertain~1
+Choose the correct word: The news _____ surprising.~were~are~was~have been~2
+Choose the opposite of reluctant.~Unwilling~Eager~Hesitant~Doubtful~1
+Identify the noun clause: I know that she is honest.~I know~that she is honest~she is honest~is honest~1
+Choose the correct form: By next year, he _____ here for ten years.~works~will have worked~has worked~worked~1
+The word benevolent means~Cruel~Kind~Careless~Proud~1
+Choose the correctly spelt word.~Questionnaire~Questionaire~Questionnair~Questionnare~0
+Choose the correct preposition: He congratulated her _____ her success.~for~on~at~with~1
+The plural of phenomenon is~Phenomenons~Phenomena~Phenomenas~Phenomenae~1
+Choose the opposite of conceal.~Hide~Cover~Reveal~Protect~2
+A person who studies ancient remains is an~Archaeologist~Astronomer~Anthropologist~Geologist~0
+Choose the correct sentence.~Neither of the answers are correct.~Neither of the answers is correct.~Neither answers is correct.~Neither answer are correct.~1
+Choose the word nearest in meaning to concise.~Brief~Confusing~Lengthy~Unclear~0
+Choose the correct question tag: Let us go, _____?~will we~shall we~do we~aren't we~1
+The expression to break the ice means to~Destroy something~Begin a friendly conversation~Become angry~End a relationship~1
+Choose the correct form: She prefers tea _____ coffee.~than~over than~to~from~2
+Which word is an abstract noun?~Table~Honesty~Bottle~Teacher~1
+Choose the correct spelling.~Maintenance~Maintainance~Maintenence~Maintanance~0
+Choose the word opposite in meaning to frugal.~Economical~Thrifty~Wasteful~Careful~2
+Choose the correct reported speech: She said, I can swim.~She said that she can swim.~She said that she could swim.~She says she could swim.~She said that I could swim.~1
+Choose the correct sentence.~The furniture are new.~The furnitures are new.~The furniture is new.~A furniture is new.~2
+`,
+
+Physics: `
+What is the SI unit of force?~Joule~Newton~Watt~Pascal~1
+Which instrument measures electric current?~Voltmeter~Barometer~Ammeter~Thermometer~2
+Approximate acceleration due to gravity near Earth's surface is~4.9 m/s²~9.8 m/s²~15 m/s²~20 m/s²~1
+Which lens converges parallel rays of light?~Concave lens~Convex lens~Plane glass~None~1
+The SI unit of electrical resistance is~Ampere~Volt~Ohm~Coulomb~2
+The SI unit of power is~Joule~Watt~Newton~Pascal~1
+Speed is defined as~Distance × time~Distance/time~Time/distance~Displacement × time~1
+A body travels 100 m in 20 s. Its average speed is~2 m/s~5 m/s~10 m/s~20 m/s~1
+Which quantity is a vector?~Mass~Time~Temperature~Velocity~3
+The energy possessed by a moving body is~Potential energy~Kinetic energy~Chemical energy~Nuclear energy~1
+The SI unit of frequency is~Hertz~Decibel~Metre~Second~0
+Sound cannot travel through~Water~Steel~Air~Vacuum~3
+Which colour has the longest wavelength in visible light?~Violet~Blue~Green~Red~3
+Ohm's law is represented by~V = IR~P = IV²~I = VR~R = VI~0
+Two resistors of 2 O and 3 O are connected in series. Total resistance is~1 O~1.2 O~5 O~6 O~2
+The charge of an electron is~Positive~Negative~Neutral~Variable positive~1
+A convex mirror generally forms an image that is~Real and inverted~Virtual and upright~Real and enlarged~Inverted and enlarged~1
+The change of a liquid into vapour is called~Condensation~Freezing~Vaporisation~Sublimation~2
+Pressure is equal to~Force × area~Force/area~Area/force~Mass × volume~1
+The SI unit of momentum is~kg m/s~kg/m³~N/m~J/s~0
+A machine has input work 100 J and output work 80 J. Its efficiency is~20%~50%~80%~125%~2
+Which device converts electrical energy to mechanical energy?~Generator~Electric motor~Transformer~Cell~1
+The image formed by a plane mirror is~Real~Inverted vertically~Virtual and same size~Always magnified~2
+Heat transfer through a vacuum occurs by~Conduction~Convection~Radiation~Diffusion~2
+The unit of specific heat capacity is~J kg?¹ K?¹~J kg K~W/m~N/kg~0
+A wave has frequency 5 Hz and wavelength 2 m. Its speed is~2.5 m/s~7 m/s~10 m/s~20 m/s~2
+The turning effect of a force is called~Impulse~Moment~Momentum~Pressure~1
+A transformer works with~Steady DC only~Alternating current~Static charge only~Chemical energy~1
+The nucleus of an atom contains~Electrons only~Protons and neutrons~Neutrons and electrons~Protons only~1
+The SI unit of capacitance is~Farad~Tesla~Henry~Weber~0
+Which law explains action and reaction?~Newton's first law~Newton's second law~Newton's third law~Hooke's law~2
+The acceleration of a body moving at constant velocity is~Zero~Constant positive~Constant negative~Infinite~0
+The instrument used to measure atmospheric pressure is~Hydrometer~Barometer~Hygrometer~Ammeter~1
+The focal length of a plane mirror is~Zero~One metre~Infinite~Negative zero~2
+Which radiation has the greatest penetrating power among these?~Alpha~Beta~Gamma~Visible light~2
+The force that opposes relative motion between surfaces is~Thrust~Friction~Upthrust~Tension~1
+A fuse wire is connected in the circuit~In parallel~In series~Outside the circuit~Across the battery only~1
+The SI unit of magnetic flux is~Tesla~Weber~Henry~Ampere~1
+The apparent change in frequency due to relative motion is called~Diffraction~Interference~Doppler effect~Polarisation~2
+Work done is zero when force is~Parallel to displacement~Opposite displacement~Perpendicular to displacement~In the direction of motion~2
+`,
+
+Chemistry: `
+What is the chemical symbol for sodium?~S~So~Na~N~2
+The pH of a neutral solution at 25°C is~0~5~7~14~2
+Which gas is released when dilute hydrochloric acid reacts with zinc?~Oxygen~Hydrogen~Nitrogen~Chlorine~1
+The atomic number of carbon is~4~6~8~12~1
+Which of these is a noble gas?~Oxygen~Nitrogen~Argon~Hydrogen~2
+A substance made of only one type of atom is an~Element~Mixture~Compound~Solution~0
+The chemical formula of water is~HO~H2O~H2O2~OH22~1
+Which particle has a negative charge?~Proton~Neutron~Electron~Nucleus~2
+The bond in sodium chloride is mainly~Covalent~Ionic~Metallic~Hydrogen~1
+Which gas turns limewater milky?~Oxygen~Hydrogen~Carbon dioxide~Nitrogen~2
+The process of separating a soluble solid from a solution by forming crystals is~Filtration~Crystallisation~Decantation~Sublimation~1
+A catalyst changes the rate of reaction by~Increasing product mass~Lowering activation energy~Being permanently consumed~Changing the equilibrium constant always~1
+The relative molecular mass of CO2 is~28~32~40~44~3
+Oxidation can be defined as~Gain of electrons~Loss of electrons~Gain of neutrons~Loss of protons~1
+Which indicator is commonly used in acid-base titration?~Starch~Phenolphthalein~Copper sulfate~Sodium chloride~1
+The major component of natural gas is~Ethane~Methane~Propane~Butane~1
+Members of a homologous series have the same~Molecular mass~Functional group~Boiling point~Number of carbon atoms~1
+The functional group of alcohols is~-COOH~-CHO~-OH~-NH2~2
+Which method separates coloured dyes in ink?~Distillation~Chromatography~Filtration~Evaporation only~1
+The gas used in the Haber process is~Oxygen and hydrogen~Nitrogen and hydrogen~Nitrogen and oxygen~Carbon dioxide and hydrogen~1
+An isotope has the same number of~Neutrons~Protons~Nucleons~Electron shells always~1
+The oxidation number of oxygen in most compounds is~-2~-1~0~+2~0
+Which of these is an alkene?~Methane~Ethane~Ethene~Ethyne~2
+The formula of benzene is~C6H6~C6H12~C2H6~C6H14~0
+A solution containing the maximum amount of solute at a given temperature is~Dilute~Unsaturated~Saturated~Colloidal~2
+Which metal is commonly extracted from bauxite?~Iron~Aluminium~Copper~Zinc~1
+The process of coating iron with zinc is called~Alloying~Galvanisation~Electrolysis~Cracking~1
+Which gas supports combustion?~Nitrogen~Carbon dioxide~Oxygen~Argon~2
+The number of moles in 18 g of water (Mr = 18) is~0.5~1~2~18~1
+An acid reacts with a base to form salt and~Hydrogen~Oxygen~Water~Carbon~2
+Which of these is a strong acid?~Ethanoic acid~Hydrochloric acid~Carbonic acid~Citric acid~1
+The first member of the alkane series is~Methane~Ethane~Propane~Butane~0
+The process of breaking large hydrocarbons into smaller molecules is~Polymerisation~Cracking~Hydrogenation~Neutralisation~1
+Which of the following is a mixture?~Pure water~Oxygen gas~Air~Sodium chloride crystal~2
+The electrode connected to the positive terminal during electrolysis is the~Cathode~Anode~Salt bridge~Electrolyte~1
+Rusting of iron requires oxygen and~Nitrogen~Moisture~Helium~Carbon monoxide only~1
+Which gas is commonly used to fill electric bulbs?~Oxygen~Argon~Chlorine~Ammonia~1
+The chemical formula of calcium carbonate is~CaCO3~CaCl2~CaO~CaSO4~0
+A reaction that releases heat to the surroundings is~Endothermic~Exothermic~Reversible only~Photochemical only~1
+The main ore of iron is commonly~Haematite~Bauxite~Galena~Cinnabar~0
+`,
+
+Biology: `
+The basic structural and functional unit of life is the~Tissue~Organ~Cell~System~2
+Which organelle is mainly responsible for photosynthesis?~Mitochondrion~Chloroplast~Ribosome~Nucleus~1
+Which blood cells transport most oxygen?~Red blood cells~White blood cells~Platelets~Lymphocytes only~0
+The male reproductive part of a flower is the~Stigma~Ovary~Stamen~Petal~2
+Hereditary information in most organisms is carried by~Starch~DNA~Glucose~Water~1
+The green pigment required for photosynthesis is~Haemoglobin~Chlorophyll~Melanin~Keratin~1
+The organ that pumps blood around the human body is the~Liver~Lung~Heart~Kidney~2
+The functional unit of the kidney is the~Neuron~Nephron~Alveolus~Villus~1
+Which gas is absorbed by plants during photosynthesis?~Oxygen~Nitrogen~Carbon dioxide~Hydrogen~2
+The process by which green plants manufacture food is~Respiration~Transpiration~Photosynthesis~Excretion~2
+Which part of a cell controls most cell activities?~Cell wall~Nucleus~Vacuole~Golgi body~1
+A group of similar cells performing a function forms a~Tissue~System~Population~Species~0
+Which blood component helps in clotting?~Red cells~Platelets~Plasma only~Antibodies only~1
+The human gas-exchange structures in the lungs are the~Nephrons~Alveoli~Villi~Bronchioles only~1
+Which vitamin is produced in the skin with suitable sunlight exposure?~Vitamin A~Vitamin B12~Vitamin C~Vitamin D~3
+The transfer of pollen from anther to stigma is~Fertilisation~Pollination~Germination~Dispersal~1
+Which organism is a producer in a food chain?~Grass~Goat~Lion~Fungus~0
+The loss of water vapour from plant leaves is~Translocation~Transpiration~Respiration~Excretion~1
+The basic unit of inheritance is the~Gene~Tissue~Organ~Chromosome pair only~0
+Which division of the nervous system includes the brain and spinal cord?~Peripheral nervous system~Central nervous system~Autonomic nerves only~Endocrine system~1
+An organism that feeds on dead organic matter as a decomposer is often a~Fungus~Green plant~Herbivore~Producer~0
+The organ responsible for producing insulin is the~Pancreas~Spleen~Gall bladder~Lung~0
+Which of these is a mammal?~Tilapia~Frog~Bat~Lizard~2
+The main function of roots is to absorb~Sunlight~Water and mineral salts~Carbon dioxide from air~Oxygen for leaves only~1
+The process by which organisms release energy from food is~Photosynthesis~Respiration~Transpiration~Pollination~1
+Which ecological relationship benefits both organisms?~Parasitism~Mutualism~Competition~Predation~1
+The vector of malaria is the female~Housefly~Anopheles mosquito~Tsetse fly~Blackfly~1
+The blood vessels that carry blood away from the heart are~Veins~Arteries~Capillaries only~Lymph vessels~1
+Which part of the flower develops into a fruit after fertilisation?~Petal~Anther~Ovary~Sepal~2
+A change in inherited genetic material is called a~Mutation~Adaptation only~Respiration~Succession~0
+Which organisms have cells without a true nucleus?~Fungi~Animals~Bacteria~Green plants~2
+The largest organ of the human body is the~Liver~Skin~Heart~Brain~1
+Which of these is a renewable natural resource?~Coal~Petroleum~Sunlight~Natural gas~2
+The removal of metabolic waste from an organism is~Nutrition~Excretion~Digestion~Assimilation~1
+Which nutrient is mainly used for growth and tissue repair?~Protein~Vitamin C~Water only~Fibre~0
+The first trophic level in a typical food chain consists of~Primary consumers~Producers~Secondary consumers~Decomposers only~1
+The human heart has how many chambers?~Two~Three~Four~Five~2
+Which structure controls the opening and closing of stomata?~Guard cells~Root hairs~Xylem vessels~Phloem tubes~0
+The fusion of male and female gametes is called~Pollination~Fertilisation~Germination~Mitosis~1
+Organisms of the same species living in an area form a~Community~Population~Ecosystem~Biome~1
+`
+
+};
+
+/* QUESTION BANK PARSER */
+
+const questionBank = {};
+let questionBankReady = true;
+
+function expectedQuestionCount(subject) {
+    return subject === "English" ? 60 : 40;
+}
+
+function parseQuestionBank(subject, source) {
+    const records = [];
+    const lines = source.trim().split(/\r?\n/);
+    let currentRecord = "";
+
+    for (const originalLine of lines) {
+        const line = originalLine.trim();
+
+        if (!line) continue;
+
+        currentRecord += (currentRecord ? " " : "") + line;
+
+        /*
+        A record ends only when the final answer index is
+        followed by the end of the accumulated line.
+        This allows questions and options to span lines.
+        */
+        if (!/~[0-3]$/.test(currentRecord)) continue;
+
+        const fields = currentRecord.split("~");
+
+        if (fields.length !== 6) {
+            throw new Error(
+                subject + ", question " + (records.length + 1) +
+                ": each question must have one question, four options, " +
+                "and one answer index. Check the ~ separators."
+            );
+        }
+
+        const question = fields[0].trim();
+        const options = fields.slice(1, 5).map(option =>
+            option.replace(/\s+/g, " ").trim()
+        );
+        const answer = Number(fields[5]);
+
+        if (!question || options.some(option => !option)) {
+            throw new Error(
+                subject + ", question " + (records.length + 1) +
+                ": a question or option is empty."
+            );
+        }
+
+        records.push({
+            question: question.replace(/\s+/g, " "),
+            options: options,
+            answer: answer
+        });
+
+        currentRecord = "";
+    }
+
+    if (currentRecord.trim()) {
+        throw new Error(
+            subject + ": the last question is incomplete. " +
+            "Its answer must end in ~0, ~1, ~2, or ~3."
+        );
+    }
+
+    const expected = expectedQuestionCount(subject);
+
+    if (records.length !== expected) {
+        throw new Error(
+            subject + " has " + records.length +
+            " questions, but exactly " + expected + " are required."
+        );
+    }
+
+    return records;
+}
+
+function showLoadingError(message) {
+    document.getElementById("loadingTitle").textContent =
+        "Examination could not start";
+
+    document.getElementById("loadingMessage").textContent =
+        "Please check the error below.";
+
+    document.getElementById("loadingError").textContent = message;
+    document.getElementById("backButton").style.display = "inline-block";
+}
+
+try {
+    for (const subject of Object.keys(rawQuestions)) {
+        questionBank[subject] = parseQuestionBank(
+            subject,
+            rawQuestions[subject]
+        );
+    }
+} catch (error) {
+    questionBankReady = false;
+    showLoadingError(error.message);
+}
+
+/* EXAM SETTINGS */
+
+const EXAM_DURATION = 2 * 60 * 60;
+const SUBJECT_LIST = [
+    "Mathematics",
+    "English",
+    "Physics",
+    "Chemistry",
+    "Biology"
+];
+
+let candidateName = "";
+let selectedSubjects = [];
+let currentSubject = "";
+let currentQuestionIndex = 0;
+let answers = {};
+let remainingSeconds = EXAM_DURATION;
+let timerInterval = null;
+let submitted = false;
+
+/* INITIALISE EXAM */
+
+function initialiseExam() {
+    if (!questionBankReady) return;
+
+    try {
+        candidateName = (
+            localStorage.getItem("jam300CandidateName") || ""
+        ).trim();
+
+        let savedSubjects;
+
+        try {
+            savedSubjects = JSON.parse(
+                localStorage.getItem("jam300Subjects") || "[]"
+            );
+        } catch (error) {
+            savedSubjects = [];
+        }
+
+        selectedSubjects = Array.isArray(savedSubjects)
+            ? [...new Set(savedSubjects.filter(subject =>
+                SUBJECT_LIST.includes(subject)
+            ))]
+            : [];
+
+        if (!candidateName || selectedSubjects.length !== 4) {
+            showLoadingError(
+                "Candidate details are missing or invalid. Return to the " +
+                "homepage, enter your name, and select exactly four different subjects."
+            );
+            return;
+        }
+
+        for (const subject of selectedSubjects) {
+            if (!questionBank[subject]) {
+                showLoadingError(
+                    "The question bank for " + subject + " is unavailable."
+                );
+                return;
+            }
+
+            if (questionBank[subject].length !== expectedQuestionCount(subject)) {
+                showLoadingError(
+                    subject + " has the wrong number of questions."
+                );
+                return;
+            }
+
+            answers[subject] = {};
+        }
+
+        document.getElementById("candidateDisplay").textContent =
+            candidateName;
+
+        document.getElementById("candidateSubjects").textContent =
+            "Subjects: " + selectedSubjects.join(", ");
+
+        currentSubject = selectedSubjects[0];
+
+        document.getElementById("loadingArea").style.display = "none";
+        document.getElementById("examArea").style.display = "block";
+
+        buildSubjectTabs();
+        showQuestion();
+        startTimer();
+
+    } catch (error) {
+        showLoadingError(
+            "Unable to start the examination: " + error.message
+        );
+    }
+}
+
+/* SUBJECT TABS */
+
+function buildSubjectTabs() {
+    const container = document.getElementById("subjectTabs");
+    container.innerHTML = "";
+
+    selectedSubjects.forEach(subject => {
+        const button = document.createElement("button");
+
+        button.className = "subject-tab" +
+            (subject === currentSubject ? " active" : "");
+
+        button.textContent =
+            subject + " (" +
+            Object.keys(answers[subject]).length + "/" +
+            questionBank[subject].length + ")";
+
+        button.onclick = function() {
+            if (submitted) return;
+
+            currentSubject = subject;
+            currentQuestionIndex = 0;
+
+            buildSubjectTabs();
+            showQuestion();
+        };
+
+        container.appendChild(button);
+    });
+}
+
+/* DISPLAY QUESTION */
+
+function showQuestion() {
+    const questions = questionBank[currentSubject];
+
+    if (!questions ||
+        currentQuestionIndex < 0 ||
+        currentQuestionIndex >= questions.length) {
+        return;
+    }
+
+    const question = questions[currentQuestionIndex];
+
+    document.getElementById("subjectTitle").textContent =
+        currentSubject;
+
+    document.getElementById("questionProgress").textContent =
+        "Question " + (currentQuestionIndex + 1) +
+        " of " + questions.length;
+
+    document.getElementById("questionText").textContent =
+        (currentQuestionIndex + 1) + ". " + question.question;
+
+    const optionsArea = document.getElementById("optionsArea");
+    optionsArea.innerHTML = "";
+
+    question.options.forEach((option, index) => {
+        const label = document.createElement("label");
+        label.className = "option";
+
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "answer";
+        radio.value = index;
+
+        radio.checked =
+            answers[currentSubject][currentQuestionIndex] === index;
+
+        radio.onchange = function() {
+            if (submitted) return;
+
+            answers[currentSubject][currentQuestionIndex] = index;
+
+            updateNavigation();
+            buildSubjectTabs();
+        };
+
+        label.appendChild(radio);
+
+        label.appendChild(document.createTextNode(
+            String.fromCharCode(65 + index) + ". " + option
+        ));
+
+        optionsArea.appendChild(label);
+    });
+
+    updateNavigation();
+}
+
+/* QUESTION NAVIGATOR */
+
+function updateNavigation() {
+    const container = document.getElementById("questionNavigation");
+    container.innerHTML = "";
+
+    questionBank[currentSubject].forEach((question, index) => {
+        const button = document.createElement("button");
+
+        button.className = "nav-number" +
+            (answers[currentSubject][index] !== undefined
+                ? " answered" : "") +
+            (index === currentQuestionIndex ? " current" : "");
+
+        button.textContent = index + 1;
+        button.setAttribute("aria-label", "Question " + (index + 1));
+
+        button.onclick = function() {
+            if (submitted) return;
+
+            currentQuestionIndex = index;
+            showQuestion();
+        };
+
+        container.appendChild(button);
+    });
+
+    let answered = 0;
+    let total = 0;
+
+    selectedSubjects.forEach(subject => {
+        total += questionBank[subject].length;
+        answered += Object.keys(answers[subject]).length;
+    });
+
+    document.getElementById("answeredCount").textContent =
+        "Answered: " + answered + " / " + total;
+}
+
+/* NEXT AND PREVIOUS */
+
+function nextQuestion() {
+    if (submitted) return;
+
+    if (currentQuestionIndex < questionBank[currentSubject].length - 1) {
+        currentQuestionIndex++;
+    } else {
+        const subjectIndex = selectedSubjects.indexOf(currentSubject);
+
+        if (subjectIndex < selectedSubjects.length - 1) {
+            currentSubject = selectedSubjects[subjectIndex + 1];
+            currentQuestionIndex = 0;
+            buildSubjectTabs();
+        } else {
+            alert("You have reached the last question.");
+            return;
+        }
+    }
+
+    showQuestion();
+}
+
+function previousQuestion() {
+    if (submitted) return;
+
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+    } else {
+        const subjectIndex = selectedSubjects.indexOf(currentSubject);
+
+        if (subjectIndex > 0) {
+            currentSubject = selectedSubjects[subjectIndex - 1];
+            currentQuestionIndex =
+                questionBank[currentSubject].length - 1;
+
+            buildSubjectTabs();
+        } else {
+            alert("You are at the first question.");
+            return;
+        }
+    }
+
+    showQuestion();
+}
+
+/* TWO-HOUR TIMER */
+
+function startTimer() {
+    clearInterval(timerInterval);
+
+    remainingSeconds = EXAM_DURATION;
+    updateTimer();
+
+    timerInterval = setInterval(function() {
+        if (submitted) {
+            clearInterval(timerInterval);
+            return;
+        }
+
+        remainingSeconds--;
+        updateTimer();
+
+        if (remainingSeconds <= 0) {
+            clearInterval(timerInterval);
+            alert("Time is up. Your examination will be submitted automatically.");
+            finishExam();
+        }
+    }, 1000);
+}
+
+function updateTimer() {
+    const secondsLeft = Math.max(0, remainingSeconds);
+
+    const hours = Math.floor(secondsLeft / 3600);
+    const minutes = Math.floor((secondsLeft % 3600) / 60);
+    const seconds = secondsLeft % 60;
+
+    document.getElementById("timer").textContent =
+        String(hours).padStart(2, "0") + ":" +
+        String(minutes).padStart(2, "0") + ":" +
+        String(seconds).padStart(2, "0");
+}
+
+/* SUBMISSION */
+
+function submitExam() {
+    if (submitted) return;
+
+    if (confirm("Are you sure you want to submit your examination?")) {
+        finishExam();
+    }
+}
+
+/* MARKING */
+
+function finishExam() {
+    if (submitted) return;
+
+    submitted = true;
+    clearInterval(timerInterval);
+
+    let totalCorrect = 0;
+    let totalQuestions = 0;
+    let totalScoreOutOf400 = 0;
+
+    const results = document.getElementById("subjectResults");
+    results.innerHTML = "";
+
+    selectedSubjects.forEach(subject => {
+        let correct = 0;
+        let answered = 0;
+
+        questionBank[subject].forEach((question, index) => {
+            if (answers[subject][index] !== undefined) {
+                answered++;
+            }
+
+            if (answers[subject][index] === question.answer) {
+                correct++;
+            }
+        });
+
+        const subjectTotal = questionBank[subject].length;
+        const subjectPercentage = (correct / subjectTotal) * 100;
+
+        totalCorrect += correct;
+        totalQuestions += subjectTotal;
+        totalScoreOutOf400 += subjectPercentage;
+
+        const resultLine = document.createElement("p");
+
+        resultLine.textContent =
+            subject + ": " + correct + "/" + subjectTotal +
+            " correct; " + answered + " answered; Score: " +
+            subjectPercentage.toFixed(1) + "/100.";
+
+        results.appendChild(resultLine);
+    });
+
+    const overallPercentage = (totalScoreOutOf400 / 400) * 100;
+
+    document.getElementById("examArea").style.display = "none";
+    document.getElementById("loadingArea").style.display = "none";
+    document.getElementById("resultArea").style.display = "block";
+
+    document.getElementById("resultCandidate").textContent =
+        "Candidate: " + candidateName;
+
+    document.getElementById("scoreText").textContent =
+        totalScoreOutOf400.toFixed(1) + " / 400";
+
+    document.getElementById("percentageText").textContent =
+        "Overall Percentage: " + overallPercentage.toFixed(1) +
+        "% (" + totalCorrect + " correct out of " +
+        totalQuestions + " questions across your selected subjects).";
+}
+
+/* START EXAM */
+
+initialiseExam();
+</script>
+</body>
+</html>
